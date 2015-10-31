@@ -108,6 +108,7 @@ For a deep dive into the following subjects, follow the links:
 * [Customizing the server (database, storage, caching, and more)](docs/config.md)
 * [Deploying Gemstash](docs/deploy.md)
 * [Debugging Gemstash](docs/debug.md)
+* [Preloading Gems](docs/preload.md)
 
 ## Reference
 
