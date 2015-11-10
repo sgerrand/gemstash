@@ -106,7 +106,7 @@ module Gemstash
                 begin
                   job, args = @jobs.pop
                   job.call(*args)
-                rescue object
+                rescue => object
                   puts "\nError while processing job: #{object}"
                 end
               end
