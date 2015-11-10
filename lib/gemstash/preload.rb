@@ -98,14 +98,17 @@ module Gemstash
     #:nodoc:
     class Pool
       def initialize(size: 20)
-        @size = size
         @jobs = SizedQueue.new(size * 2)
-        @pool = (0..@size).map do
+        @pool = (0...size).map do
           Thread.new do
             catch(:exit) do
               loop do
-                job, args = @jobs.pop
-                job.call(*args)
+                begin
+                  job, args = @jobs.pop
+                  job.call(*args)
+                rescue object
+                  puts "\nError while processing job: #{object}"
+                end
               end
             end
           end
@@ -117,10 +120,13 @@ module Gemstash
       end
 
       def shutdown
-        @size.times do
+        @pool.size.times do
           schedule { throw :exit }
         end
-        Thread.pass until @jobs.empty?
+        until @pool.empty?
+          thread = @pool.pop
+          thread.join(0.1) while thread.alive?
+        end
       end
     end
   end

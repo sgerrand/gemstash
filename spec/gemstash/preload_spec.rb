@@ -81,6 +81,22 @@ describe Gemstash::Preload do
       preloader.threads(1).preload
       expect(out.string).to eq("\r1/2\r2/2")
     end
+
+    it "supports non existing gems while processing" do
+      stubs.head("gems/latest_gem-1.0.0.gem") do
+        [404, {}, nil]
+      end
+      preloader.preload
+      expect(out.string).to eq("\r1/2\r2/2")
+    end
+
+    it "supports having errors while processing" do
+      stubs.head("gems/latest_gem-1.0.0.gem") do
+        raise Faraday::ConnectionFailed, "Just beause"
+      end
+      preloader.preload
+      expect(out.string).to eq("\r1/2\r2/2")
+    end
   end
 
   def to_marshaled_gzipped_bytes(obj)
