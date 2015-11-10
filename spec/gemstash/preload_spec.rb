@@ -1,4 +1,5 @@
 require "spec_helper"
+require "thread"
 
 describe Gemstash::Preload do
   let(:stubs) { Faraday::Adapter::Test::Stubs.new }
@@ -32,70 +33,98 @@ describe Gemstash::Preload do
   end
 
   describe Gemstash::Preload::GemPreloader do
-    before do
+    let(:invoked_stubs) { Queue.new }
+    let(:expected_stubs) { [] }
+
+    def verify_stubbed_calls
+      actual_stubs = []
+      actual_stubs << invoked_stubs.pop until invoked_stubs.empty?
+      expect(actual_stubs).to match_array(expected_stubs)
+    end
+
+    def prepare_stubs(*included_stubs)
+      if included_stubs.include?(:latest_gem)
+        expected_stubs << :latest_gem
+        stubs.head("gems/latest_gem-1.0.0.gem") do
+          invoked_stubs << :latest_gem
+          [200, { "CONTENT-TYPE" => "octet/stream" }, "The latest gem"]
+        end
+      end
+
+      if included_stubs.include?(:other)
+        expected_stubs << :other
+        stubs.head("gems/other-0.1.0.gem") do
+          invoked_stubs << :other
+          [200, { "CONTENT-TYPE" => "octet/stream" }, "The other gem"]
+        end
+      end
+
+      expected_stubs << :specs
       stubs.get("specs.4.8.gz") do
+        invoked_stubs << :specs
         [200, { "CONTENT-TYPE" => "octet/stream" }, full_specs]
-      end
-      stubs.head("gems/latest_gem-1.0.0.gem") do
-        [200, { "CONTENT-TYPE" => "octet/stream" }, "The latest gem"]
-      end
-      stubs.head("gems/other-0.1.0.gem") do
-        [200, { "CONTENT-TYPE" => "octet/stream" }, "The other gem"]
       end
     end
 
-    let(:out) { StringIO.new }
-    let(:preloader) { Gemstash::Preload::GemPreloader.new(http_client, out: out) }
+    let(:preloader) { Gemstash::Preload::GemPreloader.new(http_client) }
 
     it "Preloads all the gems included in the specs file" do
+      prepare_stubs(:latest_gem, :other)
       preloader.preload
-      stubs.verify_stubbed_calls
+      verify_stubbed_calls
     end
 
     it "Skips gems as requested" do
+      prepare_stubs(:other)
       preloader.skip(1).preload
-      expect(out.string).to eq("\r2/2")
+      verify_stubbed_calls
     end
 
     it "Loads as many gems as requested" do
+      prepare_stubs(:latest_gem)
       preloader.limit(1).preload
-      expect(out.string).to eq("\r1/2")
+      verify_stubbed_calls
     end
 
     it "Loads only the last gem when requested" do
+      prepare_stubs(:other)
       preloader.skip(1).limit(1).preload
-      expect(out.string).to eq("\r2/2")
+      verify_stubbed_calls
     end
 
     it "Loads no gem at all when the skip is larger than the size" do
+      prepare_stubs
       preloader.skip(3).preload
-      expect(out.string).to be_empty
+      verify_stubbed_calls
     end
 
-    it "Loads no gem at all when the limit is zero" do
+    it "Loads no gem and no specs at all when the limit is zero" do
       preloader.limit(0).preload
-      expect(out.string).to be_empty
+      verify_stubbed_calls
     end
 
     it "Loads in order when using only one thread" do
+      prepare_stubs(:latest_gem, :other)
       preloader.threads(1).preload
-      expect(out.string).to eq("\r1/2\r2/2")
+      verify_stubbed_calls
     end
 
     it "supports non existing gems while processing" do
+      prepare_stubs(:other)
       stubs.head("gems/latest_gem-1.0.0.gem") do
         [404, {}, nil]
       end
       preloader.preload
-      expect(out.string).to eq("\r1/2\r2/2")
+      verify_stubbed_calls
     end
 
     it "supports having errors while processing" do
+      prepare_stubs(:other)
       stubs.head("gems/latest_gem-1.0.0.gem") do
         raise Faraday::ConnectionFailed, "Just beause"
       end
       preloader.preload
-      expect(out.string).to eq("\r1/2\r2/2")
+      verify_stubbed_calls
     end
   end
 
