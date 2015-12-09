@@ -32,12 +32,7 @@ you push your own private gems as well."
   spec.add_runtime_dependency "thor", "~> 0.19"
   spec.add_runtime_dependency "faraday", "~> 0.9"
   spec.add_runtime_dependency "faraday_middleware", "~> 0.10"
-
-  if RUBY_PLATFORM == "java"
-    spec.add_runtime_dependency "jdbc-sqlite3", "~> 3.8"
-  else
-    spec.add_runtime_dependency "sqlite3", "~> 1.3"
-  end
+  spec.add_runtime_dependency "pg"
 
   spec.add_development_dependency "bundler", "~> 1.10"
   spec.add_development_dependency "rack-test", "~> 0.6"

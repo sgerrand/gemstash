@@ -6,7 +6,7 @@ module Gemstash
     DEFAULTS = {
       :cache_type => "memory",
       :base_path => File.expand_path("~/.gemstash"),
-      :db_adapter => "sqlite3",
+      :db_adapter => "postgres",
       :bind => "tcp://0.0.0.0:9292",
       :rubygems_url => "https://www.rubygems.org"
     }.freeze
